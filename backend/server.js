@@ -10,8 +10,8 @@ const port = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from the frontend directory
-app.use(express.static(path.join(__dirname, '../frontend')));
+// Serve static files from the React build directory
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 // Helper to format data for the frontend
 const formatDataForFrontend = (rows) => {
@@ -93,9 +93,9 @@ const handleDbResponse = (req, res) => (err) => {
   });
 };
 
-// All remaining requests return the React app, so it can handle routing.
+// All other GET requests not handled before will return the React app
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
 app.listen(port, () => {

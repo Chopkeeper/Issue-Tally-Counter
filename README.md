@@ -2,45 +2,51 @@
 
 This is a full-stack web application for counting issues across hospital departments, built with React for the frontend and Node.js/Express for the backend.
 
-The project has been structured as a single, unified application to simplify development and deployment. The backend server both provides the API and serves the frontend React application.
+The project is structured as a monorepo with a `frontend` and `backend` directory, managed by a single root `package.json` file.
 
 ---
 
 ## Getting Started (Local Development)
 
-To run this project on your local machine, you'll need to have [Node.js](https://nodejs.org/) installed.
+To run this project on your local machine, you'll need to have [Node.js](https://nodejs.org/) (version 18 or higher) installed.
 
 1.  **Clone the repository (if you haven't already).**
 
 2.  **Navigate to the project's root directory.**
-    This is the directory that contains this `README.md` file.
 
-3.  **Install dependencies:**
-    Run this command once to install all the necessary packages for the server.
+3.  **Install all dependencies:**
+    This command installs dependencies for both the root project and the frontend.
     ```bash
-    npm install
+    npm install && cd frontend && npm install
     ```
 
-4.  **Start the application:**
-    This command starts the backend server, which will also serve the frontend.
-    ```bash
-    npm start
-    ```
+4.  **Start the development servers:**
+    You will need two separate terminal windows for this.
+    
+    - In the first terminal, start the **backend server**:
+      ```bash
+      npm start
+      ```
+    - In the second terminal, navigate to the `frontend` directory and start the **frontend dev server**:
+      ```bash
+      cd frontend
+      npm run dev
+      ```
 
 5.  **Open the application in your browser:**
-    Once the server is running (you'll see `Server is running on port 3001`), open your web browser and go to:
-    [http://localhost:3001](http://localhost:3001)
+    The frontend server will give you a local URL to open, typically [http://localhost:5173](http://localhost:5173).
 
 ---
 
-## Deployment (e.g., on Render)
+## Deployment (on Render)
 
 This application is configured for easy deployment on platforms like Render.
 
--   **Build Command**: You can leave this blank or use `npm install`.
+-   **Root Directory**: (leave blank)
+-   **Build Command**: `npm run build`
 -   **Start Command**: `npm start`
 
-Render will automatically detect the `package.json` in the root, install dependencies, and use the `start` script to run the application.
+Render will use the `build` script to prepare your frontend and the `start` script to run the server which serves the built frontend files.
 
 ### ⚠️ Important Note on Data Persistence
 
