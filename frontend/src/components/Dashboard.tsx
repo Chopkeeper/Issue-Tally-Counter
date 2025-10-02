@@ -77,10 +77,10 @@ const Dashboard: React.FC<DashboardProps> = ({ dataForMonth, departments, issueT
     });
   });
 
-  // FIX: Cast `count` to `number` to resolve TypeScript error.
-  // `Object.values` may return `unknown[]` for objects with index signatures,
-  // which causes an error when trying to perform arithmetic operations.
-  displayTotals.grandTotal = Object.values(displayTotals.byIssue).reduce((sum, count) => sum + (count as number), 0);
+  // FIX: Convert `count` to `number` to resolve TypeScript error.
+  // `Object.values` on an object with an index signature may return `unknown[]`,
+  // which causes an error when using arithmetic operators. `Number()` ensures type safety.
+  displayTotals.grandTotal = Object.values(displayTotals.byIssue).reduce((sum, count) => sum + Number(count), 0);
 
 
   return (
