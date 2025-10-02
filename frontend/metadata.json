@@ -1,0 +1,5 @@
+{
+  "name": "Issue Tally Counter",
+  "description": "A minimalist web application to count issues for various hospital departments. It allows selecting a department and incrementing a counter, with data persisted locally.",
+  "requestFramePermissions": []
+}
