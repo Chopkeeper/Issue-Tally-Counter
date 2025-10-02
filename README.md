@@ -1,21 +1,29 @@
 # Issue Tally Counter Project
 
-This is a full-stack web application for counting issues across hospital departments, built with React for the frontend and Node.js/Express for the backend.
+This is a full-stack web application for counting issues across hospital departments, built with React for the frontend and Node.js/Express/MongoDB for the backend.
 
-The project is structured as a monorepo with a `frontend` and `backend` directory, managed by a single root `package.json` file.
+The project is structured as a monorepo with a `frontend` and `backend` directory.
 
 ---
 
 ## Getting Started (Local Development)
 
-To run this project on your local machine, you'll need to have [Node.js](https://nodejs.org/) (version 18 or higher) installed.
+To run this project on your local machine, you'll need to have [Node.js](https://nodejs.org/) (version 18 or higher) and a [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) account.
 
 1.  **Clone the repository (if you haven't already).**
 
-2.  **Navigate to the project's root directory.**
+2.  **Set up the Backend:**
+    a. Navigate to the `backend` directory: `cd backend`
+    b. Create a file named `.env`.
+    c. Add your MongoDB Atlas connection string to the `.env` file:
+       ```
+       MONGODB_URI="mongodb+srv://<user>:<password>@cluster.mongodb.net/<dbname>?retryWrites=true&w=majority"
+       ```
+       Replace `<user>`, `<password>`, `cluster.mongodb.net`, and `<dbname>` with your actual credentials and database name.
+    d. Go back to the root directory: `cd ..`
 
 3.  **Install all dependencies:**
-    This command installs dependencies for both the root project and the frontend.
+    This command installs dependencies for both the backend and the frontend.
     ```bash
     npm install && cd frontend && npm install
     ```
@@ -23,7 +31,7 @@ To run this project on your local machine, you'll need to have [Node.js](https:/
 4.  **Start the development servers:**
     You will need two separate terminal windows for this.
     
-    - In the first terminal, start the **backend server**:
+    - In the first terminal (from the root directory), start the **backend server**:
       ```bash
       npm start
       ```
@@ -46,14 +54,11 @@ This application is configured for easy deployment on platforms like Render.
 -   **Build Command**: `npm run build`
 -   **Start Command**: `npm start`
 
-Render will use the `build` script to prepare your frontend and the `start` script to run the server which serves the built frontend files.
+### Environment Variables
 
-### ⚠️ Important Note on Data Persistence
+Before deploying, you must add your `MONGODB_URI` as an **Environment Variable** in your Render service settings.
 
-This application uses **SQLite**, which stores data in a file (`database.db`) on the server's filesystem.
+-   **Key**: `MONGODB_URI`
+-   **Value**: `mongodb+srv://<user>:<password>@cluster.mongodb.net/<dbname>?retryWrites=true&w=majority`
 
-Many hosting platforms (including Render's free tier) have **ephemeral filesystems**. This means that any data written to the disk, including your database file, **will be permanently deleted** whenever the server restarts or is redeployed.
-
-For a production application where data persistence is critical, you should:
-1.  Use a managed database service (like Render's PostgreSQL, Neon, or Supabase).
-2.  Modify the backend code in `database.js` and `server.js` to connect to that database instead of SQLite.
+This ensures your deployed application can connect to your MongoDB Atlas database. The application is now designed for persistent storage, and data will not be lost on restart or redeployment.
