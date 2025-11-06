@@ -1,28 +1,52 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 
 interface DashboardProps {
-  dataForMonth: Record<string, Record<string, number>>;
   departments: string[];
   issueTypes: string[];
-  selectedYear: number;
-  selectedMonth: number;
-  onYearChange: (year: number) => void;
-  onMonthChange: (month: number) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({
-  dataForMonth,
-  departments,
-  issueTypes,
-  selectedYear,
-  selectedMonth,
-  onYearChange,
-  onMonthChange
-}) => {
+interface MonthlyData {
+  [department: string]: {
+    [issueType: string]: number;
+  };
+}
+
+const API_BASE_URL = '/api';
+
+const Dashboard: React.FC<DashboardProps> = ({ departments, issueTypes }) => {
+  const [dataForMonth, setDataForMonth] = useState<MonthlyData>({});
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
   const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
   const selectedMonthName = monthNames[selectedMonth - 1];
   const selectedYearBE = selectedYear + 543; // Buddhist year
+
+  const fetchData = useCallback(async (year: number, month: number) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/data/${year}/${month}`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const fetchedData = await response.json();
+      setDataForMonth(fetchedData);
+    } catch (err) {
+      setDataForMonth({}); // Clear data on error to prevent showing stale data
+      setError('ไม่สามารถโหลดข้อมูลสำหรับเดือนที่เลือกได้');
+      console.error("Failed to fetch dashboard data:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData(selectedYear, selectedMonth);
+  }, [selectedYear, selectedMonth, fetchData]);
 
   const departmentsWithData = departments.filter(dept => {
     const deptData = dataForMonth[dept] || {};
@@ -92,9 +116,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       displayTotals.byIssue[type] += count;
     });
   });
-
-  displayTotals.grandTotal = (Object.values(displayTotals.byIssue) as number[]).reduce((sum, count) => sum + count, 0);
-
+  displayTotals.grandTotal = Object.values(displayTotals.byIssue).reduce((sum, count) => sum + count, 0);
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-gray-800/50 rounded-2xl p-6 shadow-2xl shadow-cyan-500/10">
@@ -105,7 +127,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
           <select
             value={selectedMonth}
-            onChange={(e) => onMonthChange(parseInt(e.target.value, 10))}
+            onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
             className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5"
             aria-label="Select month"
           >
@@ -115,7 +137,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </select>
           <select
             value={selectedYear}
-            onChange={(e) => onYearChange(parseInt(e.target.value, 10))}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
             className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5"
             aria-label="Select year"
           >
@@ -136,47 +158,55 @@ const Dashboard: React.FC<DashboardProps> = ({
             </button>
         </div>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left text-gray-300">
-          <thead className="text-xs text-cyan-300 uppercase bg-gray-700/50">
-            <tr>
-              <th scope="col" className="px-6 py-3 rounded-tl-lg">หน่วยงาน</th>
-              {issueTypes.map(type => (
-                <th key={type} scope="col" className="px-6 py-3 text-center">{type}</th>
-              ))}
-              <th scope="col" className="px-6 py-3 text-center rounded-tr-lg">รวม</th>
-            </tr>
-          </thead>
-          <tbody>
-            {departmentsWithData.map((dept) => {
-              const deptData = dataForMonth[dept] || {};
-              const rowTotal = issueTypes.reduce((sum, type) => sum + (deptData[type] || 0), 0);
-
-              return (
-                <tr key={dept} className="bg-gray-800/80 border-b border-gray-700 hover:bg-gray-700/80">
-                  <th scope="row" className="px-6 py-4 font-medium whitespace-nowrap">{dept}</th>
+      {isLoading ? (
+        <p className="text-center text-gray-400 py-8">กำลังโหลดข้อมูล...</p>
+      ) : error ? (
+         <p className="text-center text-red-400 py-8">{error}</p>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-gray-300">
+              <thead className="text-xs text-cyan-300 uppercase bg-gray-700/50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 rounded-tl-lg">หน่วยงาน</th>
                   {issueTypes.map(type => (
-                    <td key={type} className="px-6 py-4 text-center">{deptData[type] || 0}</td>
+                    <th key={type} scope="col" className="px-6 py-3 text-center">{type}</th>
                   ))}
-                  <td className="px-6 py-4 font-bold text-center">{rowTotal}</td>
+                  <th scope="col" className="px-6 py-3 text-center rounded-tr-lg">รวม</th>
                 </tr>
-              );
-            })}
-          </tbody>
-          <tfoot className="font-bold text-cyan-300 bg-gray-700/50">
-            <tr>
-              <td className="px-6 py-3 rounded-bl-lg">รวมทั้งหมด</td>
-              {issueTypes.map(type => (
-                <td key={type} className="px-6 py-3 text-center">{displayTotals.byIssue[type]}</td>
-              ))}
-              <td className="px-6 py-3 text-center rounded-br-lg">{displayTotals.grandTotal}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-       {departmentsWithData.length === 0 && (
-          <p className="text-center text-gray-400 py-8">ไม่มีข้อมูลสำหรับเดือนที่เลือก</p>
-        )}
+              </thead>
+              <tbody>
+                {departmentsWithData.map((dept) => {
+                  const deptData = dataForMonth[dept] || {};
+                  const rowTotal = issueTypes.reduce((sum, type) => sum + (deptData[type] || 0), 0);
+
+                  return (
+                    <tr key={dept} className="bg-gray-800/80 border-b border-gray-700 hover:bg-gray-700/80">
+                      <th scope="row" className="px-6 py-4 font-medium whitespace-nowrap">{dept}</th>
+                      {issueTypes.map(type => (
+                        <td key={type} className="px-6 py-4 text-center">{deptData[type] || 0}</td>
+                      ))}
+                      <td className="px-6 py-4 font-bold text-center">{rowTotal}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="font-bold text-cyan-300 bg-gray-700/50">
+                <tr>
+                  <td className="px-6 py-3 rounded-bl-lg">รวมทั้งหมด</td>
+                  {issueTypes.map(type => (
+                    <td key={type} className="px-6 py-3 text-center">{displayTotals.byIssue[type]}</td>
+                  ))}
+                  <td className="px-6 py-3 text-center rounded-br-lg">{displayTotals.grandTotal}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          {departmentsWithData.length === 0 && (
+              <p className="text-center text-gray-400 py-8">ไม่มีข้อมูลสำหรับเดือนที่เลือก</p>
+            )}
+        </>
+      )}
     </div>
   );
 };

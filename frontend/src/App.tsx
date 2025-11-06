@@ -16,45 +16,43 @@ interface MonthlyData {
 const API_BASE_URL = '/api';
 
 const App: React.FC = () => {
-  const [data, setData] = useState<MonthlyData>({});
+  const [counterData, setCounterData] = useState<MonthlyData>({});
   const [selectedDepartment, setSelectedDepartment] = useState<string>(DEPARTMENTS[0]);
   const [selectedIssueType, setSelectedIssueType] = useState<string>(ISSUE_TYPES[0]);
   const [currentView, setCurrentView] = useState<'counter' | 'dashboard'>('counter');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // State for dashboard date selection
-  const [dashboardYear, setDashboardYear] = useState<number>(new Date().getFullYear());
-  const [dashboardMonth, setDashboardMonth] = useState<number>(new Date().getMonth() + 1);
-
-  const fetchData = useCallback(async (year: number, month: number) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_BASE_URL}/data/${year}/${month}`);
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const fetchedData = await response.json();
-      setData(fetchedData);
-    } catch (err) {
-      setData({}); // Clear data on error to prevent showing stale data
-      setError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบว่า Backend ทำงานอยู่');
-      console.error("Failed to fetch data:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Effect to fetch data based on the current view and selected date for the dashboard
+  // This effect now only fetches data for the counter view (current month)
   useEffect(() => {
     if (currentView === 'counter') {
       const today = new Date();
-      fetchData(today.getFullYear(), today.getMonth() + 1);
-    } else if (currentView === 'dashboard') {
-      fetchData(dashboardYear, dashboardMonth);
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      
+      setIsLoading(true);
+      setError(null);
+      
+      fetch(`${API_BASE_URL}/data/${year}/${month}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then(data => {
+          setCounterData(data);
+        })
+        .catch(err => {
+          setCounterData({}); // Clear data on error
+          setError('ไม่สามารถโหลดข้อมูลสำหรับหน้า Counter ได้');
+          console.error("Failed to fetch counter data:", err);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     }
-  }, [currentView, dashboardYear, dashboardMonth, fetchData]);
+  }, [currentView]);
 
   const handleDepartmentChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedDepartment(event.target.value);
@@ -76,9 +74,7 @@ const App: React.FC = () => {
       });
       if (!response.ok) throw new Error('Failed to increment');
       const updatedData = await response.json();
-      // Since increment only happens on the counter view, which shows current month's data,
-      // we can safely update the state with the response from the server.
-      setData(updatedData);
+      setCounterData(updatedData);
     } catch (error) {
       console.error("Failed to increment count:", error);
       setError('เกิดข้อผิดพลาดในการนับเพิ่ม');
@@ -98,8 +94,7 @@ const App: React.FC = () => {
         });
         if (!response.ok) throw new Error('Failed to reset');
         const updatedData = await response.json();
-        // Same logic as increment, the API returns updated data for the current month.
-        setData(updatedData);
+        setCounterData(updatedData);
       } catch (error) {
         console.error("Failed to reset count:", error);
         setError('เกิดข้อผิดพลาดในการรีเซ็ต');
@@ -107,7 +102,7 @@ const App: React.FC = () => {
     }
   }, [selectedDepartment, selectedIssueType]);
 
-  const currentCount = data[selectedDepartment]?.[selectedIssueType] || 0;
+  const currentCount = counterData[selectedDepartment]?.[selectedIssueType] || 0;
   
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-start p-4 font-sans">
@@ -117,6 +112,7 @@ const App: React.FC = () => {
         {error && <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg w-full max-w-lg text-center">{error}</div>}
 
         {currentView === 'counter' && (
+          isLoading ? <p className="text-gray-400">Loading counter...</p> :
           <div className="w-full max-w-lg flex flex-col items-center space-y-8">
             <DepartmentSelector
               departments={DEPARTMENTS}
@@ -139,15 +135,9 @@ const App: React.FC = () => {
         )}
 
         {currentView === 'dashboard' && (
-           isLoading ? <p className="text-gray-400">Loading dashboard...</p> : 
           <Dashboard 
-            dataForMonth={data}
             departments={DEPARTMENTS}
             issueTypes={ISSUE_TYPES}
-            selectedYear={dashboardYear}
-            selectedMonth={dashboardMonth}
-            onYearChange={setDashboardYear}
-            onMonthChange={setDashboardMonth}
           />
         )}
       </div>
