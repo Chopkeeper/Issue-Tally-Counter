@@ -5,24 +5,40 @@ interface DashboardProps {
   dataForMonth: Record<string, Record<string, number>>;
   departments: string[];
   issueTypes: string[];
+  selectedYear: number;
+  selectedMonth: number;
+  onYearChange: (year: number) => void;
+  onMonthChange: (month: number) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ dataForMonth, departments, issueTypes }) => {
+const Dashboard: React.FC<DashboardProps> = ({
+  dataForMonth,
+  departments,
+  issueTypes,
+  selectedYear,
+  selectedMonth,
+  onYearChange,
+  onMonthChange
+}) => {
   const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-  const date = new Date();
-  const currentMonthName = monthNames[date.getMonth()];
-  const currentYear = date.getFullYear() + 543; // Buddhist year
-
-  // This calculation is now done inside the component render logic
-  // to ensure it's always up-to-date with the rendered data.
+  const selectedMonthName = monthNames[selectedMonth - 1];
+  const selectedYearBE = selectedYear + 543; // Buddhist year
 
   const departmentsWithData = departments.filter(dept => {
     const deptData = dataForMonth[dept] || {};
     return issueTypes.some(type => (deptData[type] || 0) > 0);
   });
+  
+  const generateYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = 0; i < 5; i++) {
+        years.push(currentYear - i);
+    }
+    return years;
+  };
 
   const handleExportToExcel = () => {
-    // Recalculate totals to ensure data integrity for export
     const exportTotals = {
       byIssue: issueTypes.reduce((acc, type) => ({ ...acc, [type]: 0 }), {} as Record<string, number>),
       grandTotal: 0,
@@ -57,9 +73,9 @@ const Dashboard: React.FC<DashboardProps> = ({ dataForMonth, departments, issueT
 
     const ws = XLSX.utils.aoa_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `ข้อมูลเดือน${currentMonthName}`);
+    XLSX.utils.book_append_sheet(wb, ws, `ข้อมูลเดือน${selectedMonthName}`);
 
-    const fileName = `สรุปปัญหา_${currentMonthName}_${currentYear}.xlsx`;
+    const fileName = `สรุปปัญหา_${selectedMonthName}_${selectedYearBE}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
   
@@ -77,29 +93,48 @@ const Dashboard: React.FC<DashboardProps> = ({ dataForMonth, departments, issueT
     });
   });
 
-  // FIX: The result of Object.values on an object with an index signature can be `unknown[]`.
-  // We cast to `number[]` which is safe here because we know `byIssue` only contains numbers.
-  // This resolves the type error within the `reduce` function.
   displayTotals.grandTotal = (Object.values(displayTotals.byIssue) as number[]).reduce((sum, count) => sum + count, 0);
 
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-gray-800/50 rounded-2xl p-6 shadow-2xl shadow-cyan-500/10">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
         <h2 className="text-2xl font-bold text-cyan-400">
-          แดชบอร์ดประจำเดือน {currentMonthName} {currentYear}
+          แดชบอร์ดประจำเดือน {selectedMonthName} {selectedYearBE}
         </h2>
-        <button
-          onClick={handleExportToExcel}
-          className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm flex items-center gap-2 disabled:bg-gray-500 disabled:cursor-not-allowed"
-          aria-label="Export data to Excel"
-          disabled={departmentsWithData.length === 0}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          <span>Export to Excel</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
+          <select
+            value={selectedMonth}
+            onChange={(e) => onMonthChange(parseInt(e.target.value, 10))}
+            className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5"
+            aria-label="Select month"
+          >
+            {monthNames.map((name, index) => (
+              <option key={index} value={index + 1}>{name}</option>
+            ))}
+          </select>
+          <select
+            value={selectedYear}
+            onChange={(e) => onYearChange(parseInt(e.target.value, 10))}
+            className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5"
+            aria-label="Select year"
+          >
+            {generateYearOptions().map(year => (
+              <option key={year} value={year}>{year + 543}</option>
+            ))}
+          </select>
+           <button
+              onClick={handleExportToExcel}
+              className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm flex items-center gap-2 disabled:bg-gray-500 disabled:cursor-not-allowed w-full md:w-auto justify-center"
+              aria-label="Export data to Excel"
+              disabled={departmentsWithData.length === 0}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Export</span>
+            </button>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-300">
@@ -140,7 +175,7 @@ const Dashboard: React.FC<DashboardProps> = ({ dataForMonth, departments, issueT
         </table>
       </div>
        {departmentsWithData.length === 0 && (
-          <p className="text-center text-gray-400 py-8">ยังไม่มีข้อมูลสำหรับเดือนนี้</p>
+          <p className="text-center text-gray-400 py-8">ไม่มีข้อมูลสำหรับเดือนที่เลือก</p>
         )}
     </div>
   );

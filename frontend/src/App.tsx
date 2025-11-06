@@ -16,17 +16,18 @@ interface MonthlyData {
 const API_BASE_URL = '/api';
 
 const App: React.FC = () => {
-  const [dataForMonth, setDataForMonth] = useState<MonthlyData>({});
+  const [data, setData] = useState<MonthlyData>({});
   const [selectedDepartment, setSelectedDepartment] = useState<string>(DEPARTMENTS[0]);
   const [selectedIssueType, setSelectedIssueType] = useState<string>(ISSUE_TYPES[0]);
   const [currentView, setCurrentView] = useState<'counter' | 'dashboard'>('counter');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
+  // State for dashboard date selection
+  const [dashboardYear, setDashboardYear] = useState<number>(new Date().getFullYear());
+  const [dashboardMonth, setDashboardMonth] = useState<number>(new Date().getMonth() + 1);
+
+  const fetchData = useCallback(async (year: number, month: number) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -34,9 +35,10 @@ const App: React.FC = () => {
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
-      const data = await response.json();
-      setDataForMonth(data);
+      const fetchedData = await response.json();
+      setData(fetchedData);
     } catch (err) {
+      setData({}); // Clear data on error to prevent showing stale data
       setError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบว่า Backend ทำงานอยู่');
       console.error("Failed to fetch data:", err);
     } finally {
@@ -44,9 +46,15 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Effect to fetch data based on the current view and selected date for the dashboard
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (currentView === 'counter') {
+      const today = new Date();
+      fetchData(today.getFullYear(), today.getMonth() + 1);
+    } else if (currentView === 'dashboard') {
+      fetchData(dashboardYear, dashboardMonth);
+    }
+  }, [currentView, dashboardYear, dashboardMonth, fetchData]);
 
   const handleDepartmentChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedDepartment(event.target.value);
@@ -68,7 +76,9 @@ const App: React.FC = () => {
       });
       if (!response.ok) throw new Error('Failed to increment');
       const updatedData = await response.json();
-      setDataForMonth(updatedData);
+      // Since increment only happens on the counter view, which shows current month's data,
+      // we can safely update the state with the response from the server.
+      setData(updatedData);
     } catch (error) {
       console.error("Failed to increment count:", error);
       setError('เกิดข้อผิดพลาดในการนับเพิ่ม');
@@ -88,7 +98,8 @@ const App: React.FC = () => {
         });
         if (!response.ok) throw new Error('Failed to reset');
         const updatedData = await response.json();
-        setDataForMonth(updatedData);
+        // Same logic as increment, the API returns updated data for the current month.
+        setData(updatedData);
       } catch (error) {
         console.error("Failed to reset count:", error);
         setError('เกิดข้อผิดพลาดในการรีเซ็ต');
@@ -96,15 +107,8 @@ const App: React.FC = () => {
     }
   }, [selectedDepartment, selectedIssueType]);
 
-  const currentCount = dataForMonth[selectedDepartment]?.[selectedIssueType] || 0;
+  const currentCount = data[selectedDepartment]?.[selectedIssueType] || 0;
   
-  // Refresh data when switching to dashboard view
-  useEffect(() => {
-    if (currentView === 'dashboard') {
-      fetchData();
-    }
-  }, [currentView, fetchData]);
-
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-start p-4 font-sans">
       <div className="w-full max-w-4xl mx-auto flex flex-col items-center space-y-8">
@@ -137,9 +141,13 @@ const App: React.FC = () => {
         {currentView === 'dashboard' && (
            isLoading ? <p className="text-gray-400">Loading dashboard...</p> : 
           <Dashboard 
-            dataForMonth={dataForMonth}
+            dataForMonth={data}
             departments={DEPARTMENTS}
             issueTypes={ISSUE_TYPES}
+            selectedYear={dashboardYear}
+            selectedMonth={dashboardMonth}
+            onYearChange={setDashboardYear}
+            onMonthChange={setDashboardMonth}
           />
         )}
       </div>
